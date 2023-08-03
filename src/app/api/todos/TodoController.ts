@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "../../../../prisma"
+import Validator from 'validatorjs';
 
 export default class TodoController {
   private prisma
@@ -9,12 +10,20 @@ export default class TodoController {
   }
 
   public index = async () => {
-    const todos = await this.prisma.todo.findMany()
+    const todos = await this.prisma.todo.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
     return NextResponse.json(todos)
   }
 
   public store = async (request: Request) => {
     const data = await request.json()
+    const validator = new Validator(data, { description: 'required' })
+
+    if (validator.fails()) {
+      return NextResponse.error().json()
+    }
+
     await this.prisma.todo.create({ data: data })
 
     const todo = await this.prisma.todo.findMany({
@@ -27,6 +36,15 @@ export default class TodoController {
 
   public update = async (id: number, request: Request) => {
     const data = await request.json()
+    const validator = new Validator(data, {
+      description: 'sometimes|required',
+      completed: 'sometimes|required'
+    })
+
+    if (validator.fails()) {
+      return NextResponse.error().json()
+    }
+
     await this.prisma.todo.update({
       where: { id: Number(id) },
       data: data
